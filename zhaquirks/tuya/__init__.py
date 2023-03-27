@@ -249,7 +249,16 @@ class Data(t.List, item_type=t.uint8_t):
         """Convert from a tuya data payload to an int typed value."""
         # first uint8_t is the length of the remaining data
         # tuya data is in big endian whereas ztypes use little endian
-        ints = {1: t.int8s, 2: t.int16s, 3: t.int24s, 4: t.int32s}
+        ints = {
+            1: t.int8s,
+            2: t.int16s,
+            3: t.int24s,
+            4: t.int32s,
+            5: t.int40s,
+            6: t.int48s,
+            7: t.int56s,
+            8: t.int64s,
+        }
         return ints[self[0]].deserialize(bytes(reversed(self[1:])))[0]
 
     def __iter__(self):
@@ -820,6 +829,18 @@ class TuyaLocalCluster(LocalDataCluster):
             self.debug("no such attribute: %s", attr_name)
             return
         return self._update_attribute(attr.id, value)
+
+
+class TuyaNoBindPowerConfigurationCluster(PowerConfiguration, CustomCluster):
+    """PowerConfiguration cluster that prevents setting up binding/attribute reports in order to stop battery drain."""
+
+    async def bind(self):
+        """Prevent bind."""
+        return (foundation.Status.SUCCESS,)
+
+    async def _configure_reporting(self, *args, **kwargs):  # pylint: disable=W0221
+        """Prevent remote configure reporting."""
+        return (foundation.ConfigureReportingResponse.deserialize(b"\x00")[0],)
 
 
 class TuyaPowerConfigurationCluster(PowerConfiguration, TuyaLocalCluster):
